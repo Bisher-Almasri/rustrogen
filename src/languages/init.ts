@@ -1,5 +1,7 @@
 import * as monaco from "monaco-editor";
-import { conf, language } from "./luau";
+// Import the completion provider along with conf and language
+import { conf, language, luauCompletionProvider } from "./luau";
+
 export function init() {
 	monaco.languages.register({
 		id: "luau",
@@ -10,5 +12,7 @@ export function init() {
 
 	monaco.languages.setLanguageConfiguration("luau", conf);
 	monaco.languages.setMonarchTokensProvider("luau", language);
+	// Register the completion item provider
+	monaco.languages.registerCompletionItemProvider("luau", luauCompletionProvider);
 }
     

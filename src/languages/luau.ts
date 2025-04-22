@@ -1,8 +1,3 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
-
 import * as monaco from "monaco-editor";
 
 export const conf: monaco.languages.LanguageConfiguration = {
@@ -569,140 +564,32 @@ export const language: monaco.languages.IMonarchLanguage = {
 	}
 };
 
-// const delimiters = [".", ":", "("];
-// const kindToDelimiter = {
-// Field: ["."],
-// Enum: [".", "("],
-// EnumMember: ["."],
-// Method: [":"],
-// Function: ["."],
-// Event: ["."],
-// Class: ["."]
-// };
+export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
+    async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position) {
+      const suggestions: monaco.languages.CompletionItem[] = [];
+      const word = model.getWordUntilPosition(position);
+      const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+      };
 
-// function getHierarchy(position: monaco.Position, ignoreParenthesis: boolean) {
-//     // Get text before cursor:
-//     const line = position.lineNumber;
-//     const col = position.column;
-//     const text = editor.getModel()!.getValueInRange({
-//         startLineNumber: 1,
-//         startColumn: 1,
-//         endLineNumber: line,
-//         endColumn: col
-//     });
-//     let pos = text.length;
+      // Import definitions from JSON using ES6 import
+      const definitions = await fetch('/definitions.json').then(res => res.json());
+      
+      // Add completions from definitions
+      for (const def of definitions) {
+        suggestions.push({
+          label: def.label,
+          kind: def.type === 'function' ? monaco.languages.CompletionItemKind.Function : monaco.languages.CompletionItemKind.Property,
+          insertText: def.label,
+          range: range,
+          documentation: def.documentation,
+          detail: def.detail
+        });
+      }
 
-//     // Snap position since arrays start at zero:
-//     pos -= 1;
-
-//     // Consumes a word and passes it:
-//     function consumeWord() {
-//         const word = [];
-//         let code = 1;
-//         while (text.charAt(pos)) {
-//             const char = text.charAt(pos);
-//             pos -= 1;
-//             if (char.match(/[a-zA-Z0-9_\"]/)) word.push(char);
-//             else if (delimiters.includes(char)) {
-//                 if (ignoreParenthesis && char == "(") code = 0;
-//                 else code = char;
-//                 break;
-//             } else {
-//                 code = 0;
-//                 break;
-//             }
-//         }
-//         if (word.length === 0 && typeof code === "number") return [0];
-//         return [code, word.reverse().join("")];
-//     }
-
-//     // Consume words until stopped:
-//     const hierarchy = [];
-//     let delimiter;
-//     while (true) {
-//         const [code, word] = consumeWord();
-
-//         if (word) hierarchy.push(word);
-
-//         // Error
-//         if (code == 0) break;
-//         // Since it's not success, it's a delimiter
-//         else if (code != 1) {
-//             hierarchy.push(code);
-//             if (!delimiter) delimiter = code;
-//         }
-//     }
-
-//     return [hierarchy.reverse(), delimiter];
-// }
-
-// function getAutocompleteContainerFromName(luaAutocompletes, name) {
-//     for (const kind in luaAutocompletes) {
-//         const autocompletes = luaAutocompletes[kind];
-//         if (autocompletes && autocompletes[name]) {
-//             return autocompletes[name];
-//         }
-//     }
-// }
-
-// function getAutocompleteContainerFromHierarchy(
-//     luaAutocompletes,
-//     hierarchy,
-//     delimiter
-// ) {
-//     let autocompletes = getAutocompleteContainerFromName(
-//         luaAutocompletes,
-//         hierarchy[0]
-//     );
-
-//     if (!autocompletes) return;
-
-//     for (let index = 1; index < hierarchy.length; index++) {
-//         const key = hierarchy[index];
-//         const child = getAutocompleteContainerFromName(
-//             autocompletes.__children__,
-//             key
-//         );
-//         if (child) autocompletes = child;
-//         else if (delimiter && index == hierarchy.length - 1) break;
-//         else if (!delimiters.includes(key)) return;
-//     }
-
-//     return autocompletes;
-// }
-
-// function RemoveAutocompletes(scope) {
-//     const proposals = GetProposals();
-//     for (let index = proposals.length - 1; index >= 0; --index) {
-//         const autocomplete = proposals[index];
-//         if (autocomplete.__scope__ == scope) proposals.splice(index, 1);
-//     }
-// }
-
-// function AddAutocompletes(autocompleteContainer, scope, delimiter) {
-//     for (const kind in autocompleteContainer) {
-//         const autocompletes = autocompleteContainer[kind];
-
-//         if (
-//             typeof autocompletes === "undefined" ||
-//             (delimiter &&
-//                 kindToDelimiter[kind] &&
-//                 !kindToDelimiter[kind].includes(delimiter))
-//         )
-//             continue;
-
-//         if (autocompletes[0]) {
-//             for (const name of Object.values(autocompletes))
-//                 AddSnippet(kind, name, { __scope__: scope });
-
-//             continue;
-//         }
-
-//         for (const name in autocompletes) {
-//             const data = autocompletes[name];
-//             data.__scope__ = scope;
-//             AddSnippet(kind, name, data);
-//         }
-//     }
-// }
-    
+      return { suggestions: suggestions };
+    }
+};

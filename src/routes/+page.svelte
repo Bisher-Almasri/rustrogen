@@ -1,8 +1,10 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte'; // Import onDestroy
   import * as monaco from 'monaco-editor';
   import { init as initLuauLanguage } from '../languages/init';
+  import { fade, fly, slide } from 'svelte/transition';
+  import { quintOut, elasticOut } from 'svelte/easing';
 
   interface Tab {
     id: number;
@@ -16,6 +18,14 @@
   let editor: monaco.editor.IStandaloneCodeEditor;
   let showLastTabWarning = false;
   let warningTimeout: number | undefined = undefined;
+  let editorReady = false;
+  let activeTabTransitioning = false;
+
+  // Typing animation variables
+  let typingText = "";
+  let fullText = "// Welcome to Rustrogen - Your Lua playground";
+  let typingIndex = 0;
+  let typingInterval: number | undefined = undefined;
 
   let tabs: Tab[] = [
     { id: 1, name: "Script 1", code: `print("Hello from Tab 1!")` },
@@ -102,6 +112,26 @@
 
   let contentChangeListener: monaco.IDisposable | null = null;
 
+  function startTypingAnimation() {
+    clearInterval(typingInterval);
+    typingText = "";
+    typingIndex = 0;
+    
+    typingInterval = window.setInterval(() => {
+      if (typingIndex < fullText.length) {
+        typingText += fullText.charAt(typingIndex);
+        typingIndex++;
+      } else {
+        clearInterval(typingInterval);
+        setTimeout(() => {
+          if (editor && activeTab) {
+            editor.setValue(activeTab.code);
+          }
+        }, 500);
+      }
+    }, 50);
+  }
+
   onMount(() => {
     initLuauLanguage();
 
@@ -116,7 +146,7 @@
       scrollBeyondLastLine: false,
       padding: { top: 15, bottom: 15 },
       lineNumbers: 'on',
-      roundedSelection: false,
+      wordWrap: "on",
       scrollbar: {
         useShadows: false,
         verticalHasArrows: false,
@@ -135,12 +165,35 @@
       }
     });
 
+    // Add animation for cursor - using type assertion to avoid TypeScript errors
+    try {
+      // Use type assertion to access internal properties
+      const editorAny = editor as any;
+      if (editorAny._modelData && editorAny._modelData.cursor) {
+        const originalUpdateCursor = editorAny._modelData.cursor.update;
+        if (originalUpdateCursor) {
+          editorAny._modelData.cursor.update = function(...args: unknown[]) {
+            originalUpdateCursor.apply(this, args);
+            const cursorElement = document.querySelector('.monaco-editor .cursor');
+            if (cursorElement) {
+              cursorElement.classList.add('animated-cursor');
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('Could not apply cursor animation:', error);
+    }
+
+    editorReady = true;
+    startTypingAnimation();
   });
 
   onDestroy(() => {
     contentChangeListener?.dispose();
     editor?.dispose();
     if (warningTimeout) clearTimeout(warningTimeout);
+    if (typingInterval) clearInterval(typingInterval);
   });
 
   function displayWarning() {
@@ -151,20 +204,32 @@
     }, 3000);
   }
 
-  function switchTab(index: number) {
-    if (index !== activeTabIndex && index >= 0 && index < tabs.length) {
-      activeTabIndex = index;
-      if (editor) {
-         editor.setValue(tabs[activeTabIndex].code);
+  async function switchTab(index: number) {
+    if (index !== activeTabIndex && index >= 0 && index < tabs.length && !activeTabTransitioning) {
+      activeTabTransitioning = true;
+      
+      // Save current content
+      if (editor && activeTab) {
+        tabs[activeTabIndex].code = editor.getValue();
       }
+      
+      // Set the active tab index
+      activeTabIndex = index;
+      
+      // Directly set the editor value to the tab's code without animation
+      if (editor && tabs[index]) {
+        editor.setValue(tabs[index].code);
+      }
+      
+      await tick();
+      activeTabTransitioning = false;
     }
   }
-
   async function addTab() {
     const newTab: Tab = {
       id: nextTabId++,
       name: `Script ${nextTabId - 1}`,
-      code: `print("Hello from new tab!")`
+      code: `-- Script ${nextTabId - 1}`
     };
     tabs = [...tabs, newTab];
     await tick();
@@ -193,7 +258,6 @@
     }
   }
 
-
   async function execute(event: Event) {
     event.preventDefault();
     if (isExecuting || !activeTab) return;
@@ -213,169 +277,6 @@
   }
 </script>
 
-<style>
-  @font-face {
-    font-family: 'JetBrains Mono';
-    src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2'),
-         url('/fonts/JetBrainsMono-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-  }
-
-  :global(body) {
-    margin: 0;
-    padding: 0;
-    background-color: #1a1a1a;
-    color: #e0e0e0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden;
-  }
-
-  .app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-    background-color: #1a1a1a;
-    position: relative;
-  }
-
-  .tabs-container {
-    display: flex;
-    align-items: center;
-    background-color: #1a1a1a;
-  }
-
-  .tabs {
-    display: flex;
-    flex-grow: 1;
-    overflow-x: auto;
-  }
-
-  .tab {
-    display: flex;
-    align-items: center;
-    padding: 10px 15px;
-    color: #a6afbd;
-    cursor: pointer;
-    background-color: #1a1a1a;
-    white-space: nowrap;
-    transition: color 0.2s, background-color 0.2s;
-    position: relative;
-    padding-right: 30px;
-  }
-
-  .tab:hover {
-     color: #e0e0e0;
-     background-color: #202020;
-  }
-
-  .tab.active {
-    background-color: #1f1f1f;
-    color: #ffffff;
-    border-bottom: 2px solid #bb86fc;
-    margin-bottom: -1px;
-  }
-
-  .tab-close-btn {
-    position: absolute;
-    right: 5px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #a6afbd;
-    cursor: pointer;
-    font-size: 14px;
-    padding: 2px 4px;
-    border-radius: 3px;
-    line-height: 1;
-  }
-
-  .tab:hover .tab-close-btn {
-    color: #e0e0e0;
-  }
-
-  .tab.active .tab-close-btn {
-     color: #ffffff;
-  }
-
-  .tab-close-btn:hover {
-    background-color: #444;
-  }
-
-  .add-tab-btn {
-    padding: 10px 15px;
-    background: none;
-    border: none;
-    color: #a6afbd;
-    cursor: pointer;
-    font-size: 20px;
-    line-height: 1;
-  }
-
-  .add-tab-btn:hover {
-    color: #ffffff;
-    background-color: #252525;
-  }
-
-  .editor-container {
-    flex: 1;
-    width: 100%;
-    background-color: #1a1a1a;
-    overflow: hidden;
-  }
-
-  .execute-btn {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    background-color: #bb86fc;
-    color: #1a1a1a;
-    border: none;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-    transition: background-color 0.2s;
-  }
-
-  .execute-btn:hover {
-    background-color: #9a67ea;
-  }
-
-  .execute-btn:disabled {
-    background-color: #555;
-    cursor: not-allowed;
-  }
-
-  .warning-toast {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #ff9e64;
-    color: #1a1a1a;
-    padding: 10px 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    z-index: 1001;
-    font-size: 14px;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-  }
-
-  .warning-toast.show {
-    opacity: 1;
-  }
-</style>
-
 <div class="app-container">
   <div class="tabs-container">
     <div class="tabs">
@@ -388,35 +289,59 @@
           aria-selected={index === activeTabIndex}
           tabindex="0"
           on:keydown={(e) => e.key === 'Enter' && switchTab(index)}
+          in:fly={{ x: 20, duration: 300, delay: index * 50 }}
+          out:fade={{ duration: 200 }}
         >
           {tab.name}
           <button
             class="tab-close-btn"
             on:click={(e) => closeTab(index, e)}
             aria-label="Close tab {tab.name}"
+            in:fade={{ duration: 200, delay: 300 + index * 50 }}
           >
             &times;
           </button>
         </div>
       {/each}
     </div>
-    <button class="add-tab-btn" on:click={addTab} aria-label="Add new tab">+</button>
+    <button 
+      class="add-tab-btn" 
+      on:click={addTab} 
+      aria-label="Add new tab"
+      in:fly={{ x: -20, duration: 300 }}
+    >
+      +
+    </button>
   </div>
 
-  <div bind:this={editorContainer} class="editor-container" />
+  <div 
+    bind:this={editorContainer} 
+    class="editor-container"
+    in:fade={{ duration: 800, delay: 200 }}
+  ></div>
 
   <button
     class="execute-btn"
+    class:executing={isExecuting}
     on:click={execute}
     disabled={isExecuting || !activeTab}
     aria-label="Execute script"
+    in:fly={{ y: 20, duration: 500, delay: 500, easing: elasticOut }}
   >
     ▶
   </button>
 
   {#if showLastTabWarning}
-    <div class="warning-toast show">
+    <div 
+      class="warning-toast show"
+      in:fly={{ y: 20, duration: 300, easing: quintOut }}
+      out:fade={{ duration: 300 }}
+    >
       You cannot close the last tab.
     </div>
   {/if}
 </div>
+
+<style>
+  @import './style.css';
+</style>
