@@ -1,7 +1,10 @@
-# Tauri + SvelteKit + TypeScript
+# Rustrogen
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+A Hydrogen-M Ui in rust.
 
-## Recommended IDE Setup
+## How to install
+Run
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+```bash
+curl -fsSL https://raw.githubusercontent.com/Bisher-Almasri/rustrogen/main/install.sh | bash
+```
