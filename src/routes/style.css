@@ -278,67 +278,27 @@
   background-color: #0f0f0f;
   border-top: 1px solid #222;
   padding: 10px;
-  height: 25vh;
+  height: auto;
+  width: 100%;
+  box-sizing: border-box;
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
   color: #cccccc;
   overflow-y: hidden;
   text-align: left;
-}
-
-.log-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: left;
-  margin-bottom: 8px;
-}
-
-.log-header h3 {
-  font-size: 14px;
-  font-weight: normal;
-  margin: 0;
-  color: #aaa;
-}
-
-.clear-logs-btn {
-  background: #333;
-  color: #eee;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.3s ease;
-}
-
-.clear-logs-btn:hover {
-  background: #444;
+  position: relative;
 }
 
 .log-output {
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 100%;
+  max-height: calc(25vh - 40px);
   overflow-y: auto;
   scrollbar-width: thin;
-  padding-left: 0; 
-  text-align: left; 
-}
-
-.button-container {
-  display: flex;
-  gap: 10px;
-  position: absolute;
-  bottom: 60px;
-  right: 20px;
-  z-index: 50;
-}
-
-
-
-.editor-expanded {
-  flex: 1 !important;
-  transition: flex 0.3s ease;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .console-toggle-btn {
@@ -357,6 +317,7 @@
   z-index: 100;
   box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
+  width: auto;
 }
 
 .console-toggle-btn:hover {

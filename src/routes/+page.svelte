@@ -253,7 +253,10 @@
     startTypingAnimation();
 
     unlisten = await listen<string>("roblox-log", (event) => {
-      logs.push(event.payload);
+      // remove all info from the log
+      let log = event.payload;
+      log = log.replace(/info\s/g, "");
+      logs.push(log);
       logs = [...logs];
 
       setTimeout(() => {
@@ -466,14 +469,13 @@
       </div>
       <div class="log-output">
         {#each logs as log}
-          <!-- keep the weird spacing here to prevent the text from breaking -->
           <span
             style="color: {log.startsWith('error')
               ? '#ff6565'
               : log.startsWith('warning')
                 ? '#ffaa00'
-                : "#fff"}"
-            >{log} <br />
+                : '#fff'}"
+            >{log}<br />
           </span>
         {/each}
       </div>
