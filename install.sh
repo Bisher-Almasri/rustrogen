@@ -2,7 +2,7 @@
 
 set -e
 
-RUSTROGEN_URL="https://github.com/Bisher-Almasri/rustrogen/releases/download/v1.0/rustrogen.app.zip"
+RUSTROGEN_URL="https://github.com/Bisher-Almasri/rustrogen/releases/download/latest/rustrogen.app.zip"
 
 info() {
   echo "[*] $1"
