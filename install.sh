@@ -2,7 +2,9 @@
 
 set -e
 
-RUSTROGEN_URL="https://github.com/Bisher-Almasri/rustrogen/releases/download/latest/rustrogen.app.zip"
+LATEST_TAG=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/Bisher-Almasri/rustrogen/releases/latest | sed 's|.*/tag/||')
+
+RUSTROGEN_URL="https://github.com/Bisher-Almasri/rustrogen/releases/download/$LATEST_TAG/rustrogen.app.zip"
 
 info() {
   echo "[*] $1"
