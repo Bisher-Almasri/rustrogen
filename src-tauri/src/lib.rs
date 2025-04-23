@@ -1,6 +1,11 @@
 use std::net::TcpStream;
 use std::io::{Read, Write};
 use std::time::Duration;
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader, Seek, SeekFrom};
+use std::thread;
+use tauri::Emitter;
+use tauri::Window;
 
 const START_PORT: u16 = 6969;
 const END_PORT: u16 = 7069;
@@ -8,6 +13,113 @@ const SECRET_PATH: &str = "/secret";
 const EXECUTE_PATH: &str = "/execute";
 const SECRET_VALUE: &str = "0xdeadbeef";
 const TIMEOUT_MS: u64 = 100; 
+use dirs_next as dirs;
+
+#[tauri::command]
+fn get_roblox_logs(window: Window) -> Result<String, String> {
+    let log_dir = match dirs::home_dir() {
+        Some(home) => home.join("Library/Logs/Roblox"),
+        None => return Err("Could not get home directory".to_string())
+    };
+    
+    if !log_dir.exists() {
+        return Err(format!("Roblox log directory not found at {:?}", log_dir));
+    }
+    
+    let newest_log = match fs::read_dir(&log_dir) {
+        Ok(entries) => {
+            let mut newest: Option<(std::path::PathBuf, std::time::SystemTime)> = None;
+            for entry in entries.filter_map(Result::ok) {
+                let file_name = entry.file_name().to_string_lossy().to_string();
+                if file_name.contains("Player") && file_name.ends_with(".log") {
+                    match entry.metadata() {
+                        Ok(metadata) => {
+                            match metadata.modified() {
+                                Ok(modified_time) => {
+                                    if newest.is_none() || 
+                                       newest.as_ref().unwrap().1 < modified_time {
+                                        newest = Some((entry.path(), modified_time));
+                                    }
+                                },
+                                Err(_) => continue
+                            }
+                        },
+                        Err(_) => continue
+                    }
+                }
+            }
+            newest.map(|(path, _)| path)
+        },
+        Err(e) => return Err(format!("Could not read Roblox log directory: {}", e))
+    };
+
+    if let Some(log_path) = newest_log {
+        println!("Tailing log file: {:?}", log_path);
+        
+        let window_clone = window.clone();
+        
+        thread::spawn(move || {
+            match File::open(&log_path) {
+                Ok(file) => {
+                    let mut reader = BufReader::new(file);
+                    if let Err(e) = reader.seek(SeekFrom::End(0)) {
+                        let _ = window_clone.emit("roblox-log", format!("Error seeking log file: {}", e));
+                        return;
+                    }
+                    
+                    let _ = window_clone.emit("roblox-log", format!("Successfully connected to log file: {:?}", log_path));
+                    
+                    loop {
+                        let mut line = String::new();
+                        match reader.read_line(&mut line) {
+                            Ok(0) => {
+                                thread::sleep(Duration::from_millis(500));
+                            },
+                            Ok(_) => {
+                                let line = line.trim();
+                                if !line.is_empty() && 
+                                   (line.contains("FLog::Error") || 
+                                    line.contains("FLog::Warning") || 
+                                    line.contains("FLog::Output")) {
+                                    let formatted_line = if let Some(msg_start) = line.find("] ") {
+                                        let msg = &line[msg_start + 2..];
+                                        if line.contains("FLog::Error") {
+                                            format!("error {}", msg)
+                                        } else if line.contains("FLog::Warning") {
+                                            format!("warning {}", msg)
+                                        } else {
+                                            format!("info {}", msg)
+                                        }
+                                    } else {
+                                        line.to_string()
+                                    };
+                                    
+                                    if let Err(e) = window_clone.emit("roblox-log", formatted_line) {
+                                        println!("Failed to emit log event: {}", e);
+                                        break;
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                let _ = window_clone.emit("roblox-log", format!("Error reading log file: {}", e));
+                                println!("Error reading log file: {}", e);
+                                break;
+                            }
+                        }
+                    }
+                },
+                Err(e) => {
+                    let _ = window_clone.emit("roblox-log", format!("Could not open log file: {}", e));
+                }
+            }
+        });
+        
+        Ok(format!("Started monitoring Roblox logs at"))
+    } else {
+        Err("No Roblox Player logs found.".to_string())
+    }
+}
+
 
 #[tauri::command]
 async fn execute(code: Option<String>) -> Result<String, String> {
@@ -69,7 +181,7 @@ async fn execute(code: Option<String>) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![execute])
+        .invoke_handler(tauri::generate_handler![execute, get_roblox_logs])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
