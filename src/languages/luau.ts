@@ -566,10 +566,10 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
     const snippets: monaco.languages.CompletionItem[] = [
       {
         label: "print",
-        kind: monaco.languages.CompletionItemKind.Function,
+        kind: monaco.languages.CompletionItemKind.Snippet,
         insertText: 'print(${1:text})',
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        documentation: "Print text to the output",
+        documentation: "Prints a message to the output",
         range: range,
       },
       {
