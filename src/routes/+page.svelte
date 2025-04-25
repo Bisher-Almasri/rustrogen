@@ -6,26 +6,18 @@
   import { fade, fly, slide } from "svelte/transition";
   import { quintOut, elasticOut } from "svelte/easing";
   import { listen } from "@tauri-apps/api/event";
-  import {flip} from 'svelte/animate';
-  import { writable } from "svelte/store";
-
+  import { flip } from "svelte/animate";
+  import { settings, loadSettings, saveSettings, applyTheme } from "../lib/stores";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { goto } from "$app/navigation";
   let logs: string[] = [];
   let logInitialized = false;
   let consoleVisible = true;
   let settingsVisible = false;
+  let menuVisible = false;
 
-  // Settings store
-  const settings = writable({
-    theme: "dark",
-    fontSize: 14,
-    fontFamily: "'JetBrains Mono', Consolas, 'Courier New', monospace",
-    wordWrap: true,
-    autoSave: true,
-    tabSize: 2,
-    simpleTabStyle: false, // Add this new setting
-  });
+  let appWindow = getCurrentWindow();
 
-  // Theme options
   const themes = [
     { id: "dark", name: "Dark (Default)" },
     { id: "darker", name: "Darker" },
@@ -34,9 +26,11 @@
     { id: "blue", name: "Blue Accent" },
   ];
 
-  // Font options
   const fonts = [
-    { id: "'JetBrains Mono', Consolas, 'Courier New', monospace", name: "JetBrains Mono" },
+    {
+      id: "'JetBrains Mono', Consolas, 'Courier New', monospace",
+      name: "JetBrains Mono",
+    },
     { id: "'Fira Code', monospace", name: "Fira Code" },
     { id: "Consolas, 'Courier New', monospace", name: "Consolas" },
     { id: "'Source Code Pro', monospace", name: "Source Code Pro" },
@@ -76,7 +70,6 @@
   let typingIndex = 0;
   let typingInterval: number | undefined = undefined;
 
-  // Update editor settings when they change
   $: if (editor && $settings) {
     editor.updateOptions({
       fontSize: $settings.fontSize,
@@ -84,15 +77,11 @@
       wordWrap: $settings.wordWrap ? "on" : "off",
       tabSize: $settings.tabSize,
     });
-    
-    // Apply theme CSS variables based on selected theme
-    applyTheme($settings.theme);
-  }
 
-  function applyTheme(themeId: string) {
-    const root = document.documentElement;
-    
-    // Define Monaco theme colors based on selected theme
+    applyTheme($settings.theme);
+    updateMonacoTheme($settings.theme);
+  }
+  function updateMonacoTheme(themeId: string) {
     let monacoColors = {
       "editor.background": "#0F0F0F",
       "editorLineNumber.foreground": "#555555",
@@ -106,20 +95,9 @@
       "editorSuggestWidget.highlightForeground": "#8b5cf6",
       "textCodeBlock.background": "#0f0f0f",
     };
-    
-    switch(themeId) {
+
+    switch (themeId) {
       case "darker":
-        root.style.setProperty('--bg-primary', '#0a0a0a');
-        root.style.setProperty('--bg-secondary', '#151515');
-        root.style.setProperty('--bg-tertiary', '#1c1c1c');
-        root.style.setProperty('--accent-primary', '#8b5cf6');
-        root.style.setProperty('--accent-secondary', '#7c3aed');
-        root.style.setProperty('--accent-tertiary', '#bb86fc');
-        root.style.setProperty('--text-primary', '#e0e0e0');
-        root.style.setProperty('--text-secondary', '#a6afbd');
-        root.style.setProperty('--text-muted', '#666666');
-        
-        // Update Monaco colors for darker theme
         monacoColors = {
           ...monacoColors,
           "editor.background": "#0a0a0a",
@@ -130,18 +108,6 @@
         };
         break;
       case "light":
-        root.style.setProperty('--bg-primary', '#f5f5f5');
-        root.style.setProperty('--bg-secondary', '#e5e5e5');
-        root.style.setProperty('--bg-tertiary', '#d5d5d5');
-        root.style.setProperty('--text-primary', '#333333');
-        root.style.setProperty('--text-secondary', '#555555');
-        root.style.setProperty('--text-muted', '#888888');
-        root.style.setProperty('--accent-primary', '#8b5cf6');
-        root.style.setProperty('--accent-secondary', '#7c3aed');
-        root.style.setProperty('--accent-tertiary', '#9333ea');
-        root.style.setProperty('--border', '#cccccc');
-        
-        // Update Monaco colors for light theme
         monacoColors = {
           "editor.background": "#f5f5f5",
           "editorLineNumber.foreground": "#888888",
@@ -157,17 +123,6 @@
         };
         break;
       case "purple":
-        root.style.setProperty('--bg-primary', '#13111C');
-        root.style.setProperty('--bg-secondary', '#1E1B2C');
-        root.style.setProperty('--bg-tertiary', '#2A2640');
-        root.style.setProperty('--accent-primary', '#A78BFA');
-        root.style.setProperty('--accent-secondary', '#8B5CF6');
-        root.style.setProperty('--accent-tertiary', '#C4B5FD');
-        root.style.setProperty('--text-primary', '#e0e0e0');
-        root.style.setProperty('--text-secondary', '#a6afbd');
-        root.style.setProperty('--text-muted', '#666666');
-        
-        // Update Monaco colors for purple theme
         monacoColors = {
           ...monacoColors,
           "editor.background": "#13111C",
@@ -179,17 +134,6 @@
         };
         break;
       case "blue":
-        root.style.setProperty('--bg-primary', '#0F172A');
-        root.style.setProperty('--bg-secondary', '#1E293B');
-        root.style.setProperty('--bg-tertiary', '#334155');
-        root.style.setProperty('--accent-primary', '#3B82F6');
-        root.style.setProperty('--accent-secondary', '#2563EB');
-        root.style.setProperty('--accent-tertiary', '#60A5FA');
-        root.style.setProperty('--text-primary', '#e0e0e0');
-        root.style.setProperty('--text-secondary', '#a6afbd');
-        root.style.setProperty('--text-muted', '#666666');
-        
-        // Update Monaco colors for blue theme
         monacoColors = {
           ...monacoColors,
           "editor.background": "#0F172A",
@@ -200,132 +144,10 @@
           "editorSuggestWidget.highlightForeground": "#3B82F6",
         };
         break;
-      default: // dark (default)
-        root.style.setProperty('--bg-primary', '#121212');
-        root.style.setProperty('--bg-secondary', '#1e1e1e');
-        root.style.setProperty('--bg-tertiary', '#252525');
-        root.style.setProperty('--accent-primary', '#8b5cf6');
-        root.style.setProperty('--accent-secondary', '#7c3aed');
-        root.style.setProperty('--accent-tertiary', '#bb86fc');
-        root.style.setProperty('--text-primary', '#e0e0e0');
-        root.style.setProperty('--text-secondary', '#a6afbd');
-        root.style.setProperty('--text-muted', '#666666');
-        
-        // Default Monaco colors are already set
-        break;
     }
-    
-    // Update Monaco editor theme with new colors
+
     monaco.editor.defineTheme("rustrogen", {
-      base: themeId === "light" ? "vs" : "vs-dark",
-      inherit: true,
-      rules: [
-        { token: "", foreground: "#C3CCDB" },
-        { token: "variable.language.self", foreground: "#F7768E" },
-        { token: "variable.parameter.variadic", foreground: "#F7768E" },
-        { token: "variable.parameter.function", foreground: "#E0AF68" },
-        { token: "variable.other.constant", foreground: "#FF9E64" },
-        { token: "variable.property", foreground: "#7DCFFF" },
-        { token: "variable.object.property", foreground: "#73DACA" },
-        { token: "keyword", foreground: "#BB9AF7" },
-        { token: "keyword.local", foreground: "#997BD6", fontStyle: "italic" },
-        { token: "keyword.operator", foreground: "#89DDFF" },
-        { token: "keyword.operator.type.annotation", foreground: "#9ABDF5" },
-        { token: "keyword.operator.typedef.annotation", foreground: "#89DDFF" },
-        {
-          token: "keyword.control.export",
-          foreground: "#997BD6",
-          fontStyle: "italic",
-        },
-        { token: "operator", foreground: "#89DDFF" },
-        { token: "operator.type", foreground: "#BB9AF7" },
-        { token: "operator.special", foreground: "#BB9AF7" },
-        { token: "entity.name.type.alias", foreground: "#5ab6d6" },
-        { token: "entity.name.function", foreground: "#7AA2F7" },
-        { token: "global", foreground: "#7AA2F7" },
-        { token: "storage.type", foreground: "#BB9AF7" },
-        { token: "comment", foreground: "#666666", fontStyle: "italic" },
-        {
-          token: "comment.highlight.title",
-          foreground: "#89DDFF",
-          fontStyle: "italic",
-        },
-        {
-          token: "comment.highlight.name",
-          foreground: "#89DDFF",
-          fontStyle: "italic",
-        },
-        {
-          token: "comment.delimiter.modifier",
-          foreground: "#9ABDF5",
-          fontStyle: "italic",
-        },
-        {
-          token: "comment.highlight.modifier",
-          foreground: "#7DCFFF",
-          fontStyle: "italic",
-        },
-        {
-          token: "comment.highlight.descriptor",
-          foreground: "#F7768E",
-          fontStyle: "italic",
-        },
-        { token: "delimiter.longstring", foreground: "#89DDFF" },
-        { token: "delimiter.bracket", foreground: "#a6afbd" },
-        { token: "delimiter.array", foreground: "#a6afbd" },
-        { token: "delimiter.parenthesis", foreground: "#a6afbd" },
-        { token: "delimiter", foreground: "#a6afbd" },
-        { token: "string", foreground: "#9ECE6A" },
-        { token: "string_double", foreground: "#9ECE6A" },
-        { token: "string_single", foreground: "#9ECE6A" },
-        { token: "string_backtick", foreground: "#9ECE6A" },
-        { token: "longstring", foreground: "#9ECE6A" },
-        { token: "string.delimeter", foreground: "#89DDFF" },
-        { token: "string.escape", foreground: "#89DDFF" },
-        { token: "punctuation.separator.arguments", foreground: "#9ABDF5" },
-        { token: "punctuation.separator.parameter", foreground: "#89DDFF" },
-        { token: "punctuation.separator.table", foreground: "#89DDFF" },
-        { token: "punctuation.definition.block", foreground: "#9ABDF5" },
-        { token: "punctuation.definition.parameters", foreground: "#9ABDF5" },
-        { token: "punctuation.definition.typeparameters", foreground: "#89DDFF" },
-        { token: "constant.language", foreground: "#FF9E64" },
-        { token: "number", foreground: "#FF9E64" },
-        { token: "constants", foreground: "#FF9E64" },
-        { token: "support.function", foreground: "#0DB9D7" },
-        { token: "support.function.library", foreground: "#0DB9D7" },
-        { token: "support.type", foreground: "#0DB9D7" },
-        { token: "support.function", foreground: "#0DB9D7" },
-        { token: "support.function.library", foreground: "#0DB9D7" },
-        { token: "support.type", foreground: "#5ab6d6" },
-      ],
-      colors: monacoColors
-    });
-    
-    // Apply the updated theme if editor exists
-    if (editor) {
-      monaco.editor.setTheme("rustrogen");
-    }
-  }
-
-  // Save settings to local storage
-  function saveSettings() {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('rustrogen-settings', JSON.stringify($settings));
-    }
-  }
-
-  // Load settings from local storage
-  function loadSettings() {
-    if (typeof localStorage !== 'undefined') {
-      const savedSettings = localStorage.getItem('rustrogen-settings');
-      if (savedSettings) {
-        settings.set(JSON.parse(savedSettings));
-      }
-    }
-  }
-
-  monaco.editor.defineTheme("rustrogen", {
-    base: "vs-dark",
+    base: themeId === "light" ? "vs" : "vs-dark",
     inherit: true,
     rules: [
       { token: "", foreground: "#C3CCDB" },
@@ -406,20 +228,33 @@
       { token: "support.function.library", foreground: "#0DB9D7" },
       { token: "support.type", foreground: "#5ab6d6" },
     ],
-    colors: {
-      "editor.background": "#0F0F0F",
-      "editorLineNumber.foreground": "#555555",
-      "editorLineNumber.activeForeground": "#999999",
-      "editor.lineHighlightBackground": "#101010",
-      "editorIndentGuide.background": "#1a1a1a",
-      "editorSuggestWidget.background": "#0f0f0f",
-      "editorSuggestWidget.border": "#222222",
-      "editorSuggestWidget.foreground": "#D5D5D5",
-      "editorSuggestWidget.selectedBackground": "#252525",
-      "editorSuggestWidget.highlightForeground": "#8b5cf6",
-      "textCodeBlock.background": "#0f0f0f",
-    },
+    colors: monacoColors,
   });
+
+
+    if (editor) {
+      monaco.editor.setTheme("rustrogen");
+    }
+  }
+
+  function closeWindow() {
+    appWindow.close();
+  }
+
+  function minimizeWindow() {
+    appWindow.minimize();
+  }
+
+  function maximizeWindow() {
+    appWindow.isMaximized().then((isMaximized) => {
+      if (isMaximized) {
+        appWindow.unmaximize();
+      } else {
+        appWindow.maximize();
+      }
+    });
+  }
+
 
   let contentChangeListener: monaco.IDisposable | null = null;
   let unlisten: (() => void) | null = null;
@@ -475,15 +310,16 @@
     }
   }
 
+  let windowWidth = 0;
+  let isMobile = false;
+
   onMount(async () => {
-    // Load settings from local storage
     loadSettings();
-    
+
     initLuauLanguage();
-    
-    // Define the initial Monaco theme
+
     applyTheme($settings.theme);
-    
+
     editor = monaco.editor.create(editorContainer, {
       value: code,
       language: "luau",
@@ -508,18 +344,14 @@
       },
     });
 
-    // Apply initial theme
     monaco.editor.setTheme("rustrogen");
 
     contentChangeListener = editor.onDidChangeModelContent(() => {
       if (activeTab && editor) {
         tabs[activeTabIndex].code = editor.getValue();
         tabs = tabs;
-        
-        // Auto-save if enabled
+
         if ($settings.autoSave) {
-          // Here you would implement auto-save functionality
-          // For example, saving to local storage or to a file via Tauri
           console.log("Auto-saving...");
         }
       }
@@ -549,7 +381,6 @@
     startTypingAnimation();
 
     unlisten = await listen<string>("roblox-log", (event) => {
-      // remove all info from the log
       let log = event.payload;
       log = log.replace(/info\s/g, "");
       logs.push(log);
@@ -626,12 +457,10 @@
 
     tabs = tabs.filter((_, i) => i !== index);
 
-    // If we're closing the active tab or one before it, adjust the active tab index
     if (index <= activeTabIndex) {
       activeTabIndex = Math.max(0, activeTabIndex - 1);
     }
 
-    // Update the editor content to show the new active tab
     if (editor && tabs[activeTabIndex]) {
       editor.setValue(tabs[activeTabIndex].code);
     }
@@ -667,44 +496,107 @@
   function toggleConsole() {
     consoleVisible = !consoleVisible;
   }
-  
+
   function toggleSettings() {
     settingsVisible = !settingsVisible;
   }
+
+  function tabDisplayName(tab: Tab) {
+    if (isMobile && tab.name.length > 10) {
+      return tab.name.substring(0, 8) + "...";
+    }
+    return tab.name;
+  }
+
+  function toggleMenu() {
+    menuVisible = !menuVisible;
+  }
+
+  function openScriptHub() {
+    menuVisible = false;
+    // load /scripthub
+    goto("/scripthub");
+  }
+
+  function openAutoExecute() {
+    menuVisible = false;
+  }
 </script>
 
-<div class="app-container" class:console-visible={consoleVisible}>
-  <div class="tabs-container">
-    <ul class="tabs">
-      {#each tabs as tab, index (tab.id)}
-        <li
-          class="tab {index === activeTabIndex ? 'active' : ''} {$settings.simpleTabStyle ? 'simple-tab' : ''}"
-          role="tab"
+<div
+  class="app-container"
+  class:mobile={isMobile}
+  class:console-visible={consoleVisible}
+  data-tauri-drag-region
+>
+  <div class="header-container">
+    <div class="tabs-container" data-tauri-drag-region>
+      <div class="traffic-lights" data-tauri-drag-region>
+        <div
+          class="traffic-light close"
+          data-action="Close"
+          title="Close window"
+          on:click={closeWindow}
+          on:keydown={(e) => e.key === 'Enter' && closeWindow()}
           tabindex="0"
-          on:keydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              switchTab(index);
-            }
-          }}
-          on:click={() => switchTab(index)}
-          in:fade={{ duration: 200 }}
-          animate:flip={{ duration: 200 }}
-        >
-          {tab.name}
-          {#if tabs.length > 1}
-            <button
-              class="tab-close-btn"
-              on:click|stopPropagation={() => closeTab(index)}
-              title="Close tab"
+          aria-label="Close window"
+          role="button"
+        ></div>
+        <div
+          class="traffic-light minimize"
+          on:click={minimizeWindow}
+          data-action="Minimize"
+          aria-label="Minimize window"
+          on:keydown={(e) => e.key === 'Enter' && closeWindow()}
+          tabindex="0"
+          role="button"
+        ></div>
+        <div
+          class="traffic-light maximize"
+          on:click={maximizeWindow}
+          data-action="Maximize"
+          tabindex="0"
+          aria-label="Maximize window"
+          on:keydown={(e) => e.key === 'Enter' && closeWindow()}
+          role="button"
+        ></div>
+      </div>
+      
+      <ul class="tabs" class:simple-tabs={$settings.simpleTabStyle || isMobile}  data-tauri-drag-region>
+          {#each tabs as tab, index (tab.id)}
+            <li
+              class="tab {index === activeTabIndex
+                ? 'active'
+                : ''} {$settings.simpleTabStyle ? 'simple-tab' : ''}"
+              role="tab"
+              tabindex="0"
+              on:keydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  switchTab(index);
+                }
+              }}
+              on:click={() => switchTab(index)}
+              animate:flip={{ duration: 300 }}
+              data-tauri-drag-region
             >
-              ×
-            </button>
-          {/if}
-        </li>
-      {/each}
-    </ul>
-    <button class="add-tab-btn" on:click={addTab} title="Add new tab">+</button>
+              {tabDisplayName(tab)}
+              <button
+                class="tab-close-btn"
+                on:click|stopPropagation={() => closeTab(index)}
+                aria-label="Close tab"
+                data-tauri-drag-region
+              >
+                ×
+              </button>
+            </li>
+          {/each}
+        </ul>
+    
+        <button class="add-tab-btn" on:click={addTab} aria-label="Add new tab"
+          >+</button
+        >
+      </div>
   </div>
 
   <div
@@ -715,15 +607,35 @@
   ></div>
 
   <div class="button-container">
-    <button
-      class="settings-btn"
-      on:click={toggleSettings}
-      aria-label="Settings"
-      in:fly={{ y: 20, duration: 500, delay: 400, easing: elasticOut }}
-    >
-      ⚙️
-    </button>
-    
+    <div class="menu-container">
+      <button
+        class="hamburger-menu"
+        on:click={toggleMenu}
+        aria-label="Menu"
+        in:fly={{ y: 20, duration: 500, delay: 400, easing: elasticOut }}
+      >
+        ☰
+      </button>
+      
+      {#if menuVisible}
+        <div
+          class="menu-items"
+          in:fly={{ y: 20, duration: 300, easing: quintOut }}
+          out:fade={{ duration: 200 }}
+        >
+          <button class="menu-item" on:click={toggleSettings}>
+            Settings
+          </button>
+          <button class="menu-item" on:click={openScriptHub}>
+            Script Hub
+          </button>
+          <button class="menu-item" on:click={openAutoExecute}>
+            Auto Execute Directory
+          </button>
+        </div>
+      {/if}
+    </div>
+
     <button
       class="execute-btn"
       class:executing={isExecuting}
@@ -774,12 +686,12 @@
       </div>
       <div class="log-output">
         {#each logs as log}
-          <div 
+          <div
             class="log-entry"
-            class:error={log.startsWith('[!]') || log.startsWith('error')}
-            class:warning={log.startsWith('warning')}
-            class:info={log.startsWith('[*]')}
-            class:success={log.startsWith('[+]')}
+            class:error={log.startsWith("[!]") || log.startsWith("error")}
+            class:warning={log.startsWith("warning")}
+            class:info={log.startsWith("[*]")}
+            class:success={log.startsWith("[+]")}
           >
             {log}
           </div>
@@ -787,25 +699,26 @@
       </div>
     </div>
   {/if}
-  
+
   {#if settingsVisible}
-    <div 
+    <div
       class="settings-panel"
       in:fly={{ x: 300, duration: 300, easing: quintOut }}
       out:fly={{ x: 300, duration: 300 }}
     >
       <div class="settings-header">
         <h2>Settings</h2>
-        <button class="close-settings" on:click={toggleSettings}>&times;</button>
+        <button class="close-settings" on:click={toggleSettings}>&times;</button
+        >
       </div>
-      
+
       <div class="settings-section">
         <h3>Appearance</h3>
-        
+
         <div class="setting-item">
           <label for="theme-select">Theme</label>
-          <select 
-            id="theme-select" 
+          <select
+            id="theme-select"
             bind:value={$settings.theme}
             on:change={saveSettings}
           >
@@ -813,19 +726,31 @@
               <option value={theme.id}>{theme.name}</option>
             {/each}
           </select>
-          
+
           <div class="theme-preview">
-            <div class="theme-color" style="background-color: var(--bg-primary)"></div>
-            <div class="theme-color" style="background-color: var(--bg-secondary)"></div>
-            <div class="theme-color" style="background-color: var(--accent-primary)"></div>
-            <div class="theme-color" style="background-color: var(--accent-tertiary)"></div>
+            <div
+              class="theme-color"
+              style="background-color: var(--bg-primary)"
+            ></div>
+            <div
+              class="theme-color"
+              style="background-color: var(--bg-secondary)"
+            ></div>
+            <div
+              class="theme-color"
+              style="background-color: var(--accent-primary)"
+            ></div>
+            <div
+              class="theme-color"
+              style="background-color: var(--accent-tertiary)"
+            ></div>
           </div>
         </div>
-        
+
         <div class="setting-item">
           <label for="font-select">Font Family</label>
-          <select 
-            id="font-select" 
+          <select
+            id="font-select"
             bind:value={$settings.fontFamily}
             on:change={saveSettings}
           >
@@ -835,10 +760,10 @@
           </select>
         </div>
       </div>
-      
+
       <div class="settings-section">
         <h3>Editor</h3>
-        
+
         <div class="setting-item">
           <label for="fontSize">Font Size</label>
           <input
@@ -850,16 +775,20 @@
             on:change={saveSettings}
           />
         </div>
-        
+
         <div class="setting-item">
           <label for="fontFamily">Font Family</label>
-          <select id="fontFamily" bind:value={$settings.fontFamily} on:change={saveSettings}>
+          <select
+            id="fontFamily"
+            bind:value={$settings.fontFamily}
+            on:change={saveSettings}
+          >
             {#each fonts as font}
               <option value={font.id}>{font.name}</option>
             {/each}
           </select>
         </div>
-        
+
         <div class="setting-item">
           <label for="tabSize">Tab Size</label>
           <input
@@ -871,7 +800,7 @@
             on:change={saveSettings}
           />
         </div>
-        
+
         <div class="setting-item checkbox-wrapper">
           <input
             type="checkbox"
@@ -881,7 +810,7 @@
           />
           <label for="wordWrap">Word Wrap</label>
         </div>
-        
+
         <div class="setting-item checkbox-wrapper">
           <input
             type="checkbox"
@@ -891,7 +820,7 @@
           />
           <label for="autoSave">Auto Save</label>
         </div>
-        
+
         <div class="setting-item checkbox-wrapper">
           <input
             type="checkbox"
@@ -902,18 +831,17 @@
           <label for="simpleTabStyle">Simple Tab Style</label>
         </div>
       </div>
-      
+
       <div class="settings-section">
         <h3>About</h3>
         <p style="color: var(--text-secondary); font-size: 14px;">
-          Rustrogen v1.0.0<br>
+          Rustrogen v1.0.0<br />
           A Tauri-based Lua script editor
         </p>
       </div>
     </div>
   {/if}
 </div>
-
 <style>
   @import "./style.css";
 </style>

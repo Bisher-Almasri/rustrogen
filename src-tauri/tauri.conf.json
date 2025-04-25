@@ -10,11 +10,17 @@
     "frontendDist": "../build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "rustrogen",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "minWidth": 640,
+        "minHeight": 550,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false
       }
     ],
     "security": {

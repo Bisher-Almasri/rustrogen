@@ -551,7 +551,6 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
     model: monaco.editor.ITextModel,
     position: monaco.Position,
   ) {
-
     const suggestions: monaco.languages.CompletionItem[] = [];
     const word = model.getWordUntilPosition(position);
     const definitions = await fetch("/definitions.json").then((res) =>
@@ -567,8 +566,9 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
       {
         label: "print",
         kind: monaco.languages.CompletionItemKind.Snippet,
-        insertText: 'print(${1:text})',
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertText: "print(${1:text})",
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "Prints a message to the output",
         range: range,
       },
@@ -578,9 +578,10 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
         insertText: [
           "for ${1:i} = 1, ${2:10} do",
           "\t${3:-- body}",
-          "end"
+          "end",
         ].join("\n"),
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "A basic for loop",
         range: range,
       },
@@ -590,21 +591,21 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
         insertText: [
           "function ${1:funcName}(${2:args})",
           "\t${3:-- body}",
-          "end"
+          "end",
         ].join("\n"),
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "Define a new function",
         range: range,
       },
       {
         label: "if statement",
         kind: monaco.languages.CompletionItemKind.Snippet,
-        insertText: [
-          "if ${1:condition} then",
-          "\t${2:-- body}",
-          "end"
-        ].join("\n"),
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertText: ["if ${1:condition} then", "\t${2:-- body}", "end"].join(
+          "\n",
+        ),
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "If statement",
         range: range,
       },
@@ -612,15 +613,18 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
         label: "local variable",
         kind: monaco.languages.CompletionItemKind.Snippet,
         insertText: "local ${1:var} = ${2:value}",
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "Declare a local variable",
         range: range,
       },
       {
         label: "iy",
         kind: monaco.languages.CompletionItemKind.Snippet,
-        insertText: "loadstring(game:HttpGetAsync(\"https://raw.githubusercontent.com/edgeiy/infiniteyield/master/source\"))()",
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertText:
+          'loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/edgeiy/infiniteyield/master/source"))()',
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "Load infinity yield",
         range: range,
       },
@@ -636,20 +640,23 @@ export const luauCompletionProvider: monaco.languages.CompletionItemProvider = {
           "end",
           "",
           "webImport('init')",
-          "webImport('ui/main')"
+          "webImport('ui/main')",
         ].join("\n"),
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "Load hydroxide",
         range: range,
       },
       {
         label: "remotespy",
         kind: monaco.languages.CompletionItemKind.Snippet,
-        insertText: "loadstring(game:HttpGetAsync(\"https://github.com/richie0866/remote-spy/releases/latest/download/RemoteSpy.lua\"))()",
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertText:
+          'loadstring(game:HttpGetAsync("https://github.com/richie0866/remote-spy/releases/latest/download/RemoteSpy.lua"))()',
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         documentation: "Load remote spy",
         range: range,
-      }
+      },
     ];
 
     for (const snippet of snippets) {

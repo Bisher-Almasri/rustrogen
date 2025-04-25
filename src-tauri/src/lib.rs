@@ -177,11 +177,86 @@ async fn execute(code: Option<String>) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+async fn get_scripts(page: u16, search: Option<String>) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let base_url = format!("https://rscripts.net/api/v2/scripts?page={}&orderBy=date&sort=desc", page);
+    let url = if let Some(search_term) = search {
+        format!("{}&q={}", base_url, search_term)
+    } else {
+        base_url
+    };
+    
+    let response = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch scripts: {}", e))?;
+    
+    if response.status().is_success() {
+        response.text()
+            .await
+            .map_err(|e| format!("Failed to read response body: {}", e))
+    } else {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        println!("HTTP {}: {}", status, body);
+        Err(format!("HTTP {}: {}", status, body))
+    }
+}
+
+#[tauri::command]
+async fn get_script_details(id: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    println!("Fetching script details for ID: {}", id); // Debugging print statement to check if the ID is being passed to the serve
+    let url = format!("https://rscripts.net/api/v2/script?id={}", id);
+    
+    let response = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch script details: {}", e))?;
+
+    let status = response.status();
+    let body = response.text()
+        .await
+        .unwrap_or_default();
+    
+    println!("response {}", &body);
+    
+    if status.is_success() {
+        Ok(body)
+    } else {
+        println!("HTTP {}: {}", status, body);
+        Err(format!("HTTP {}: {}", status, body))
+    }
+}
+
+#[tauri::command]
+async fn fetch_raw_script(url: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    println!("Fetching raw script from URL: {}", url);
+    
+    let response = client.get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch raw script: {}", e))?;
+
+    let status = response.status();
+    let body = response.text()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+    
+    if status.is_success() {
+        Ok(body)
+    } else {
+        Err(format!("HTTP {}: {}", status, body))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![execute, get_roblox_logs])
+        .invoke_handler(tauri::generate_handler![execute, get_roblox_logs, get_scripts, get_script_details, fetch_raw_script])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
